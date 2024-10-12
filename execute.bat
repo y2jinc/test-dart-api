@@ -1,0 +1,1 @@
+e:/git/practice/python/TEST/.venv/Scripts/python.exe e:/git/practice/python/TEST/dart_stock_list.py
