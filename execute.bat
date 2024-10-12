@@ -1,1 +1,2 @@
-e:/git/practice/python/TEST/.venv/Scripts/python.exe e:/git/practice/python/TEST/dart_stock_list.py
+call ".venv/Scripts/python.exe" ./dart_stock_list.py
+pause
