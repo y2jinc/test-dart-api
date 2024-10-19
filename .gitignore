@@ -2,3 +2,7 @@
 .vs/test-dart-api/CopilotIndices
 .vs/test-dart-api/FileContentIndex
 .vs/slnx.sqlite
+build/dart-query
+dist/dart-query/_internal
+dist/dart-query
+dart-query.spec
