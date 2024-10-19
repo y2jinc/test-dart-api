@@ -1,1 +1,0 @@
-e:/git/practice/python/TEST/.venv/Scripts/python.exe e:/git/practice/python/TEST/dart-query.py

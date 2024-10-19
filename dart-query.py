@@ -2,30 +2,40 @@ import requests
 from datetime import datetime, timedelta
 import OpenDartReader
 import sys
+import os
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5 import uic
 
-# 오늘 날짜 구하기
-end_date = datetime.now().strftime('%Y%m%d')
+# 인증키 얻기
+#  - https://opendart.fss.or.kr/uat/uia/egovLoginUsr.do 페이지에서 신청
+#  - ec4c456cb7a8044a2da714f47e01097a7b1de74c
+# 공시검색 개발가이드 : https://opendart.fss.or.kr/guide/detail.do?apiGrpCd=DS001&apiId=2019001
 
-# 오늘부터 5일전 날짜 구하기
-start_date = (datetime.now() - timedelta(days=20)).strftime('%Y%m%d')
+# OpenDartReader
+# https://github.com/FinanceData/OpenDartReader
 
 api_key = 'ec4c456cb7a8044a2da714f47e01097a7b1de74c'
 
-def download_info(filter_corp_code, filter_report_name, filter_company_name):
-    report_company_name_index = 1 # 보고서명
+def download_info_from_dart(start_date, end_date, filter_corp_code, filter_report_name, filter_company_name):
+    report_company_name_index = 1 # 회사명
     report_name_index = 4 # 보고서명
     receipt_num_index = 5 # 접수번호
+    
     # 종목번호로 직접 가져오는경우
     if (len(filter_corp_code) > 0):
-      full_list = dart.list(corp='088980', final=True)
-    else:
-      # 일주일간의 공시목록을 가져온다
+      try:
+        full_list = dart.list(corp=filter_corp_code, start=start_date, end=end_date, final=True)
+      except:
+        return False
+    else:      
       full_list = dart.list(start=start_date, end=end_date, final=True)
 
+    if len(full_list.values) == 0:
+       return False
+
+    is_find_info = False
     for info in full_list.values:
       company_name = str(info[report_company_name_index])
       report_name = str(info[report_name_index])
@@ -41,31 +51,80 @@ def download_info(filter_corp_code, filter_report_name, filter_company_name):
         for file_path, url in files.items():
           pdf_file_name = 'document/' + file_path
           dart.download(url, pdf_file_name)
+          is_find_info = True
+    
+    return is_find_info
 
-dart = OpenDartReader(api_key)
-# 다운로드 받는 사이트에서 연결실패 처리되서 아래의 요청을 먼저 보낸다. User-Agent 값을 먼저보내서 정상적인 유저임을 알림.
-# res = requests.get('http://dart.fss.or.kr/dsaf001/main.do',
-#                    headers={"User-Agent" : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/)"})
+# UI 로드
+ui_form = uic.loadUiType("dart_query.ui")[0]
 
-form = uic.loadUiType("dart_search.ui")[0]
-
-# 화면구성이 저장되어 있는 form을 이용한 메인 윈도우 만들기
-# form에 저장되어 있는 속성 및 메소드를 모두 상속
-# setupUi() 메소드를 통해서 form의 속성 및 메소드를 설정
-class App(QMainWindow, form) :
+class App(QMainWindow, ui_form) :
     def __init__(self):
         super().__init__()
-        self.setGeometry(300, 300, 800, 480)
         self.setupUi(self)
-        self.setWindowTitle("DRY") # 제목 표시줄 
-        self.DownloadButton.clicked.connect(self.downloadClicked)        
+        self.setWindowTitle("DART") # 제목 표시줄 
+        self.start_date = ''
+        self.end_date = ''
 
-    def downloadClicked(self):
-        corp_code = self.CorpCodeTextEdit.toPlainText()
-        report_name = self.ReportNameTextEdit.toPlainText()
-        company_name = self.CompanyNameTextEdit.toPlainText()        
-        download_info(corp_code, report_name, company_name)
-        QMessageBox.about(self, "message", "다운로드 완료")
+        self.init_directory()
+        self.init_ui()
+         
+        try:
+            self.connect_open_dart_reader()
+        except:
+            QMessageBox.about(self, "error", f"Dart 연결 실패")
+            sys.exit()
+
+    def init_directory(self):
+        doc_dir = 'document'
+        if not os.path.exists(doc_dir):
+            os.makedirs(doc_dir)
+
+    def init_ui(self):
+        # 키 / 마우스 바인드
+        self.ConfirmButton.clicked.connect(self.confirmClicked)
+        self.CorpCodeTextEdit.returnPressed.connect(self.on_enter)
+        self.ReportNameTextEdit.returnPressed.connect(self.on_enter)
+        self.CompanyNameTextEdit.returnPressed.connect(self.on_enter)
+
+        # 포커스 안가게 함.
+        self.startDateEdit.setFocusPolicy(Qt.ClickFocus)
+        self.endDateEdit.setFocusPolicy(Qt.ClickFocus)
+        self.ConfirmButton.setFocusPolicy(Qt.NoFocus)
+
+        # 기본적으로 종목코드 입력난에 포커스 지정.
+        self.CorpCodeTextEdit.setFocus();                
+
+        # 초기날짜는 오늘 부터 20일 부터 한다.
+        today_date = QDateTime.currentDateTime()
+        start_date = today_date .addDays(-20)
+        self.startDateEdit.setDateTime(start_date)
+        self.endDateEdit.setDateTime(QDateTime.currentDateTime())
+
+    def connect_open_dart_reader():        
+        dart = OpenDartReader(api_key)
+
+    def on_enter(self):
+        self.download_info()
+
+    def confirmClicked(self):
+        self.download_info()
+
+    def download_info(self):
+        corp_code = self.CorpCodeTextEdit.displayText()
+        report_name = self.ReportNameTextEdit.displayText()
+        company_name = self.CompanyNameTextEdit.displayText()
+        start_date = self.startDateEdit.date().toString("yyyyMMdd")
+        end_date = self.endDateEdit.date().toString("yyyyMMdd")
+
+        return_value = download_info_from_dart(start_date, end_date, corp_code, report_name, company_name)
+        display_start_date = self.startDateEdit.date().toString("yyyy-MM-dd")
+        display_end_date = self.endDateEdit.date().toString("yyyy-MM-dd")
+        search_str = f"{display_start_date}~{display_end_date}\n종목번호: {corp_code}\n보고서명: {report_name}\n회사명: {company_name}"
+        if return_value == True:        
+            QMessageBox.about(self, "message", f"다운로드\n{search_str}")
+        else:
+            QMessageBox.about(self, "message", f"정보를 찾지 못했습니다\n{search_str}")
         
 app = QApplication(sys.argv)
 window = App()
