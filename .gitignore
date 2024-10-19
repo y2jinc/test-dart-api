@@ -6,3 +6,7 @@ build/dart-query
 dist/dart-query/_internal
 dist/dart-query
 dart-query.spec
+.vs/test-dart-api/v17
+.vs/VSWorkspaceState.json
+.vs/ProjectSettings.json
+dist
