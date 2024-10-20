@@ -1,8 +1,9 @@
 import requests
-from datetime import datetime, timedelta
 import OpenDartReader
-import sys
+
 import os
+import sys
+from datetime import datetime, timedelta
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
@@ -16,45 +17,6 @@ from PyQt5 import uic
 # OpenDartReader
 # https://github.com/FinanceData/OpenDartReader
 
-api_key = 'ec4c456cb7a8044a2da714f47e01097a7b1de74c'
-
-def download_info_from_dart(start_date, end_date, filter_corp_code, filter_report_name, filter_company_name):
-    report_company_name_index = 1 # 회사명
-    report_name_index = 4 # 보고서명
-    receipt_num_index = 5 # 접수번호
-    
-    # 종목번호로 직접 가져오는경우
-    if (len(filter_corp_code) > 0):
-      try:
-        full_list = dart.list(corp=filter_corp_code, start=start_date, end=end_date, final=True)
-      except:
-        return False
-    else:      
-      full_list = dart.list(start=start_date, end=end_date, final=True)
-
-    if len(full_list.values) == 0:
-       return False
-
-    is_find_info = False
-    for info in full_list.values:
-      company_name = str(info[report_company_name_index])
-      report_name = str(info[report_name_index])
-      receipt_num = str(info[receipt_num_index])
-      check_report_name = True
-      check_company_name = True
-      if (len(filter_report_name) > 0 and report_name.find(filter_report_name) == -1):
-         check_report_name = False
-      if (len(filter_company_name) > 0 and company_name.find(filter_company_name) == -1):
-         check_company_name = False
-      if (check_report_name and check_company_name):
-        files = dart.attach_files(receipt_num)
-        for file_path, url in files.items():
-          pdf_file_name = 'document/' + file_path
-          dart.download(url, pdf_file_name)
-          is_find_info = True
-    
-    return is_find_info
-
 # UI 로드
 ui_form = uic.loadUiType("dart_query.ui")[0]
 
@@ -65,6 +27,7 @@ class App(QMainWindow, ui_form) :
         self.setWindowTitle("DART") # 제목 표시줄 
         self.start_date = ''
         self.end_date = ''
+        self.api_key = 'ec4c456cb7a8044a2da714f47e01097a7b1de74c'
 
         self.init_directory()
         self.init_ui()
@@ -97,12 +60,12 @@ class App(QMainWindow, ui_form) :
 
         # 초기날짜는 오늘 부터 20일 부터 한다.
         today_date = QDateTime.currentDateTime()
-        start_date = today_date .addDays(-20)
+        start_date = today_date .addDays(-10)
         self.startDateEdit.setDateTime(start_date)
         self.endDateEdit.setDateTime(QDateTime.currentDateTime())
 
-    def connect_open_dart_reader():        
-        dart = OpenDartReader(api_key)
+    def connect_open_dart_reader(self):        
+        self.dart = OpenDartReader(self.api_key)
 
     def on_enter(self):
         self.download_info()
@@ -117,14 +80,49 @@ class App(QMainWindow, ui_form) :
         start_date = self.startDateEdit.date().toString("yyyyMMdd")
         end_date = self.endDateEdit.date().toString("yyyyMMdd")
 
-        return_value = download_info_from_dart(start_date, end_date, corp_code, report_name, company_name)
+        return_value = self.download_info_from_dart(start_date, end_date, corp_code, report_name, company_name)
         display_start_date = self.startDateEdit.date().toString("yyyy-MM-dd")
         display_end_date = self.endDateEdit.date().toString("yyyy-MM-dd")
-        search_str = f"{display_start_date}~{display_end_date}\n종목번호: {corp_code}\n보고서명: {report_name}\n회사명: {company_name}"
         if return_value == True:        
-            QMessageBox.about(self, "message", f"다운로드\n{search_str}")
+            QMessageBox.about(self, "message", f"다운로드 완료")
         else:
-            QMessageBox.about(self, "message", f"정보를 찾지 못했습니다\n{search_str}")
+            QMessageBox.about(self, "message", f"정보를 찾지 못했습니다")
+
+    def download_info_from_dart(self, start_date, end_date, filter_corp_code, filter_report_name, filter_company_name):
+        report_company_name_index = 1 # 회사명
+        report_name_index = 4 # 보고서명
+        receipt_num_index = 5 # 접수번호
+
+        # 종목번호로 직접 가져오는경우
+        if (len(filter_corp_code) > 0):
+            try:
+                full_list = self.dart.list(corp=filter_corp_code, start=start_date, end=end_date, final=True)
+            except:
+                return False
+        else:      
+            full_list = self.dart.list(start=start_date, end=end_date, final=True)
+
+        if len(full_list.values) == 0:
+            return False
+
+        is_find_info = False
+        for info in full_list.values:
+            company_name = str(info[report_company_name_index])
+            report_name = str(info[report_name_index])
+            receipt_num = str(info[receipt_num_index])
+            check_report_name = True
+            check_company_name = True
+            if (len(filter_report_name) > 0 and report_name.find(filter_report_name) == -1):
+                check_report_name = False
+            if (len(filter_company_name) > 0 and company_name.find(filter_company_name) == -1):
+                check_company_name = False
+            if (check_report_name and check_company_name):
+                files = self.dart.attach_files(receipt_num)
+                for file_path, url in files.items():
+                    pdf_file_name = 'document/' + file_path
+                    self.dart.download(url, pdf_file_name)
+                    is_find_info = True
+        return is_find_info
         
 app = QApplication(sys.argv)
 window = App()

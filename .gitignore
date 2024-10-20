@@ -10,3 +10,4 @@ dart-query.spec
 .vs/VSWorkspaceState.json
 .vs/ProjectSettings.json
 dist
+docs_cache
