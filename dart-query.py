@@ -8,14 +8,18 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5 import uic
+import ssl
 
 # 인증키 얻기
 #  - https://opendart.fss.or.kr/uat/uia/egovLoginUsr.do 페이지에서 신청
 #  - ec4c456cb7a8044a2da714f47e01097a7b1de74c
+#  - d91ab08ab1606b828a4b28efa34e833f6acda093
 # 공시검색 개발가이드 : https://opendart.fss.or.kr/guide/detail.do?apiGrpCd=DS001&apiId=2019001
 
 # OpenDartReader
 # https://github.com/FinanceData/OpenDartReader
+
+ssl._create_default_https_context = ssl._create_unverified_context
 
 # UI 로드
 ui_form = uic.loadUiType("dart_query.ui")[0]
@@ -27,7 +31,7 @@ class App(QMainWindow, ui_form) :
         self.setWindowTitle("DART") # 제목 표시줄 
         self.start_date = ''
         self.end_date = ''
-        self.api_key = 'ec4c456cb7a8044a2da714f47e01097a7b1de74c'
+        self.api_key = 'd91ab08ab1606b828a4b28efa34e833f6acda093'
 
         self.init_directory()
         self.init_ui()
@@ -120,8 +124,11 @@ class App(QMainWindow, ui_form) :
                 files = self.dart.attach_files(receipt_num)
                 for file_path, url in files.items():
                     pdf_file_name = 'document/' + file_path
-                    self.dart.download(url, pdf_file_name)
-                    is_find_info = True
+                    try:
+                        self.dart.download(url, pdf_file_name)                                           
+                    except:
+                        QMessageBox.about(self, "message", "다운로드 실패")
+                is_find_info = True
         return is_find_info
         
 app = QApplication(sys.argv)

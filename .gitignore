@@ -11,3 +11,6 @@ dart-query.spec
 .vs/ProjectSettings.json
 dist
 docs_cache
+build
+dart-query-cmd.spec
+dart-query-test.spec
